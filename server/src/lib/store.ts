@@ -19,7 +19,7 @@ import type {
 
 function toUser(doc: {
   _id: Types.ObjectId
-  name: string | null
+  name?: string | null
   email: string
   googleId: string
   accessToken: string
@@ -28,7 +28,7 @@ function toUser(doc: {
 }): User {
   return {
     id: doc._id.toString(),
-    name: doc.name,
+    name: doc.name ?? null,
     email: doc.email,
     googleId: doc.googleId,
     accessToken: doc.accessToken,
@@ -62,28 +62,28 @@ function toRecipient(doc: {
   campaignId: Types.ObjectId
   email: string
   status: RecipientStatus
-  sentAt: Date | null
+  sentAt?: Date | null
 }): Recipient {
   return {
     id: doc._id.toString(),
     campaignId: doc.campaignId.toString(),
     email: doc.email,
     status: doc.status,
-    sentAt: doc.sentAt,
+    sentAt: doc.sentAt ?? null,
   }
 }
 
 function toEmailLog(doc: {
   _id: Types.ObjectId
   recipientId: Types.ObjectId
-  gmailMessageId: string | null
+  gmailMessageId?: string | null
   status: EmailLogStatus
   createdAt: Date
 }): EmailLog {
   return {
     id: doc._id.toString(),
     recipientId: doc.recipientId.toString(),
-    gmailMessageId: doc.gmailMessageId,
+    gmailMessageId: doc.gmailMessageId ?? null,
     status: doc.status,
     createdAt: doc.createdAt,
   }

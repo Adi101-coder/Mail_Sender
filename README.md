@@ -15,7 +15,7 @@ A full-stack web application for connecting Gmail, creating email templates, upl
 ## Prerequisites
 
 - Node.js 18+
-- MongoDB running locally (or MongoDB Atlas connection string)
+- MongoDB Atlas cluster (free tier works)
 - Google Cloud project with OAuth 2.0 credentials
 
 ## Project Structure
@@ -54,17 +54,26 @@ Required variables:
 | `SESSION_SECRET` | Random string (min 16 chars) |
 | `ENCRYPTION_KEY` | Random string (min 32 chars) for token encryption |
 | `CLIENT_URL` | `http://localhost:5173` |
-| `MONGODB_URI` | `mongodb://127.0.0.1:27017/mail_sender` (or Atlas URI) |
+| `MONGODB_URI` | Full MongoDB Atlas connection string (see below) |
 
-### 3. Start MongoDB
+### 3. MongoDB Atlas setup
 
-**Local install:** make sure MongoDB is running on port `27017`.
+1. Go to [MongoDB Atlas](https://cloud.mongodb.com/) and create a free cluster
+2. **Database Access** → create a database user (username + password)
+3. **Network Access** → add your IP (or `0.0.0.0/0` for development)
+4. **Connect** → **Drivers** → copy the connection string
+5. Paste it into `.env` as `MONGODB_URI`
 
-**Docker (optional):**
+Example (replace placeholders with your values):
 
-```bash
-docker run -d --name mail-sender-mongo -p 27017:27017 mongo:7
+```env
+MONGODB_URI=mongodb+srv://myuser:mypassword@cluster0.xxxxx.mongodb.net/mail_sender?retryWrites=true&w=majority
 ```
+
+**Important:**
+- Replace `<password>` with your real database password
+- If your password contains special characters (`@`, `#`, `:`, etc.), [URL-encode](https://www.urlencoder.org/) them
+- Keep `/mail_sender` before the `?` — that is the database name used by this app
 
 ### 4. Google Cloud Console setup
 
