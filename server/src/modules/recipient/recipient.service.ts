@@ -1,6 +1,5 @@
-import { RecipientStatus } from '@prisma/client'
 import { MAX_RECIPIENTS_PER_CAMPAIGN } from '../../config/env.js'
-import { prisma } from '../../lib/prisma.js'
+import { store } from '../../lib/store.js'
 import { parseAndValidateEmails } from '../../utils/emailValidation.js'
 
 /** Add validated recipients to a campaign, replacing existing ones. */
@@ -18,16 +17,7 @@ export async function addRecipientsToCampaign(
     throw new Error(`Maximum ${MAX_RECIPIENTS_PER_CAMPAIGN} recipients allowed per campaign`)
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.recipient.deleteMany({ where: { campaignId } })
-    await tx.recipient.createMany({
-      data: valid.map((email) => ({
-        campaignId,
-        email,
-        status: RecipientStatus.Pending,
-      })),
-    })
-  })
+  await store.replaceRecipients(campaignId, valid)
 
   return { added: valid.length, invalid }
 }

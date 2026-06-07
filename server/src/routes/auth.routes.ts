@@ -2,11 +2,11 @@ import { Router } from 'express'
 import { env } from '../config/env.js'
 import { getUserId, requireAuth } from '../middleware/auth.middleware.js'
 import {
+  deleteUserAccount,
   getGoogleAuthUrl,
   handleGoogleCallback,
 } from '../modules/auth/auth.service.js'
 import { getDashboardStats } from '../modules/campaign/campaign.service.js'
-import { prisma } from '../lib/prisma.js'
 
 const router = Router()
 
@@ -69,7 +69,7 @@ router.post('/logout', (req, res) => {
 router.delete('/account', requireAuth, async (req, res, next) => {
   try {
     const userId = getUserId(req)
-    await prisma.user.delete({ where: { id: userId } })
+    await deleteUserAccount(userId)
     req.session.destroy(() => {
       res.clearCookie('connect.sid')
       res.json({ success: true })

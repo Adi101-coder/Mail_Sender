@@ -1,7 +1,7 @@
 import { google } from 'googleapis'
 import { env, GOOGLE_SCOPES } from '../../config/env.js'
+import { store } from '../../lib/store.js'
 import { decrypt, encrypt } from '../../utils/crypto.js'
-import { prisma } from '../../lib/prisma.js'
 
 export function createOAuth2Client() {
   return new google.auth.OAuth2(
@@ -40,29 +40,18 @@ export async function handleGoogleCallback(code: string) {
     throw new Error('Unable to retrieve Google profile')
   }
 
-  const user = await prisma.user.upsert({
-    where: { googleId: profile.id },
-    update: {
-      name: profile.name ?? null,
-      email: profile.email,
-      accessToken: encrypt(tokens.access_token),
-      refreshToken: encrypt(tokens.refresh_token),
-    },
-    create: {
-      googleId: profile.id,
-      name: profile.name ?? null,
-      email: profile.email,
-      accessToken: encrypt(tokens.access_token),
-      refreshToken: encrypt(tokens.refresh_token),
-    },
+  return store.upsertUser({
+    googleId: profile.id,
+    name: profile.name ?? null,
+    email: profile.email,
+    accessToken: encrypt(tokens.access_token),
+    refreshToken: encrypt(tokens.refresh_token),
   })
-
-  return user
 }
 
 /** Get a Gmail API client with refreshed credentials for a user. */
 export async function getGmailClientForUser(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId } })
+  const user = await store.findUserById(userId)
   if (!user) throw new Error('User not found')
 
   const client = createOAuth2Client()
@@ -71,20 +60,19 @@ export async function getGmailClientForUser(userId: string) {
     refresh_token: decrypt(user.refreshToken),
   })
 
-  client.on('tokens', async (tokens) => {
-    if (tokens.access_token) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { accessToken: encrypt(tokens.access_token) },
+  client.on('tokens', (tokens) => {
+    store
+      .updateUserTokens(userId, {
+        accessToken: tokens.access_token ? encrypt(tokens.access_token) : undefined,
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : undefined,
       })
-    }
-    if (tokens.refresh_token) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { refreshToken: encrypt(tokens.refresh_token) },
-      })
-    }
+      .catch((err) => console.error('Failed to persist refreshed tokens:', err))
   })
 
   return google.gmail({ version: 'v1', auth: client })
+}
+
+/** Remove user and all associated data from the database. */
+export async function deleteUserAccount(userId: string): Promise<void> {
+  await store.deleteUser(userId)
 }

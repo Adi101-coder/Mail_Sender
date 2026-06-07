@@ -1,29 +1,28 @@
-import { CampaignStatus, EmailLogStatus, RecipientStatus } from '@prisma/client'
 import { BATCH_DELAY_MS, BATCH_SIZE } from '../../config/env.js'
-import { prisma } from '../../lib/prisma.js'
+import { store } from '../../lib/store.js'
+import type { CampaignStatus } from '../../types/models.js'
 import { sleep } from '../../utils/sleep.js'
-import { sendGmailMessage } from '../gmail/gmail.service.js'
 import { updateCampaignStatus } from '../campaign/campaign.service.js'
+import { sendGmailMessage } from '../gmail/gmail.service.js'
 
 /** Send emails to all pending recipients in batches with rate limiting. */
 export async function sendCampaignEmails(userId: string, campaignId: string) {
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, userId },
-    include: { recipients: true },
-  })
+  const campaign = await store.getCampaign(campaignId, userId)
 
   if (!campaign) {
     throw new Error('Campaign not found')
   }
 
-  if (campaign.recipients.length === 0) {
+  const campaignRecipients = campaign.recipients ?? []
+
+  if (campaignRecipients.length === 0) {
     throw new Error('No recipients to send to')
   }
 
-  await updateCampaignStatus(campaignId, CampaignStatus.Sending)
+  await updateCampaignStatus(campaignId, 'Sending')
 
-  const pendingRecipients = campaign.recipients.filter(
-    (r) => r.status === RecipientStatus.Pending || r.status === RecipientStatus.Failed,
+  const pendingRecipients = campaignRecipients.filter(
+    (r) => r.status === 'Pending' || r.status === 'Failed',
   )
 
   let hasFailures = false
@@ -41,36 +40,22 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
             body: campaign.body,
           })
 
-          await prisma.$transaction([
-            prisma.recipient.update({
-              where: { id: recipient.id },
-              data: { status: RecipientStatus.Sent, sentAt: new Date() },
-            }),
-            prisma.emailLog.create({
-              data: {
-                recipientId: recipient.id,
-                gmailMessageId,
-                status: EmailLogStatus.Sent,
-              },
-            }),
-          ])
+          await store.updateRecipient(recipient.id, { status: 'Sent', sentAt: new Date() })
+          await store.createEmailLog({
+            recipientId: recipient.id,
+            gmailMessageId,
+            status: 'Sent',
+          })
         } catch (error) {
           hasFailures = true
           console.error(`Failed to send to ${recipient.email}:`, error)
 
-          await prisma.$transaction([
-            prisma.recipient.update({
-              where: { id: recipient.id },
-              data: { status: RecipientStatus.Failed },
-            }),
-            prisma.emailLog.create({
-              data: {
-                recipientId: recipient.id,
-                gmailMessageId: null,
-                status: EmailLogStatus.Failed,
-              },
-            }),
-          ])
+          await store.updateRecipient(recipient.id, { status: 'Failed' })
+          await store.createEmailLog({
+            recipientId: recipient.id,
+            gmailMessageId: null,
+            status: 'Failed',
+          })
         }
       }),
     )
@@ -80,7 +65,7 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
     }
   }
 
-  const finalStatus = hasFailures ? CampaignStatus.Failed : CampaignStatus.Completed
+  const finalStatus: CampaignStatus = hasFailures ? 'Failed' : 'Completed'
   await updateCampaignStatus(campaignId, finalStatus)
 
   return getCampaignSendStatus(userId, campaignId)
@@ -88,22 +73,19 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
 
 /** Get current send progress for a campaign. */
 export async function getCampaignSendStatus(userId: string, campaignId: string) {
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, userId },
-    include: {
-      recipients: { orderBy: { email: 'asc' } },
-    },
-  })
+  const campaign = await store.getCampaign(campaignId, userId)
 
   if (!campaign) {
     throw new Error('Campaign not found')
   }
 
+  const campaignRecipients = campaign.recipients ?? []
+
   const stats = {
-    total: campaign.recipients.length,
-    pending: campaign.recipients.filter((r) => r.status === RecipientStatus.Pending).length,
-    sent: campaign.recipients.filter((r) => r.status === RecipientStatus.Sent).length,
-    failed: campaign.recipients.filter((r) => r.status === RecipientStatus.Failed).length,
+    total: campaignRecipients.length,
+    pending: campaignRecipients.filter((r) => r.status === 'Pending').length,
+    sent: campaignRecipients.filter((r) => r.status === 'Sent').length,
+    failed: campaignRecipients.filter((r) => r.status === 'Failed').length,
   }
 
   return { campaign, stats }

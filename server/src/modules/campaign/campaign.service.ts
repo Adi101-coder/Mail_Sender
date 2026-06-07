@@ -1,5 +1,5 @@
-import { CampaignStatus, Prisma } from '@prisma/client'
-import { prisma } from '../../lib/prisma.js'
+import { store } from '../../lib/store.js'
+import type { CampaignStatus, CampaignWithMeta } from '../../types/models.js'
 
 export interface CreateCampaignInput {
   userId: string
@@ -10,64 +10,44 @@ export interface CreateCampaignInput {
 
 /** Create a new draft campaign for the authenticated user. */
 export async function createCampaign(input: CreateCampaignInput) {
-  return prisma.campaign.create({
-    data: {
-      userId: input.userId,
-      campaignName: input.campaignName.trim(),
-      subject: input.subject.trim(),
-      body: input.body.trim(),
-      status: CampaignStatus.Draft,
-    },
+  return store.createCampaign({
+    userId: input.userId,
+    campaignName: input.campaignName.trim(),
+    subject: input.subject.trim(),
+    body: input.body.trim(),
   })
 }
 
 /** List all campaigns for a user with recipient counts. */
 export async function listCampaigns(userId: string) {
-  return prisma.campaign.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      _count: { select: { recipients: true } },
-    },
-  })
+  return store.listCampaigns(userId)
 }
 
 /** Get a single campaign with recipients. */
 export async function getCampaignById(userId: string, campaignId: string) {
-  return prisma.campaign.findFirst({
-    where: { id: campaignId, userId },
-    include: {
-      recipients: { orderBy: { email: 'asc' } },
-      _count: { select: { recipients: true } },
-    },
-  })
+  return store.getCampaign(campaignId, userId)
 }
 
 /** Dashboard stats for the authenticated user. */
 export async function getDashboardStats(userId: string) {
-  const [campaignCount, sentCount, user] = await Promise.all([
-    prisma.campaign.count({ where: { userId } }),
-    prisma.recipient.count({ where: { campaign: { userId }, status: 'Sent' } }),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, email: true, createdAt: true },
-    }),
+  const user = await store.findUserById(userId)
+  const [campaignCount, sentCount] = await Promise.all([
+    store.countCampaigns(userId),
+    store.countSentRecipients(userId),
   ])
 
-  return { campaignCount, sentCount, user }
+  return {
+    campaignCount,
+    sentCount,
+    user: user ? store.toPublicUser(user) : null,
+  }
 }
 
 /** Update campaign status. */
-export async function updateCampaignStatus(
-  campaignId: string,
-  status: CampaignStatus,
-) {
-  return prisma.campaign.update({
-    where: { id: campaignId },
-    data: { status },
-  })
+export async function updateCampaignStatus(campaignId: string, status: CampaignStatus) {
+  const updated = await store.updateCampaignStatus(campaignId, status)
+  if (!updated) throw new Error('Campaign not found')
+  return updated
 }
 
-export type CampaignWithRecipients = Prisma.CampaignGetPayload<{
-  include: { recipients: true }
-}>
+export type CampaignWithRecipients = CampaignWithMeta

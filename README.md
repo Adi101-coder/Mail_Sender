@@ -8,14 +8,14 @@ A full-stack web application for connecting Gmail, creating email templates, upl
 |-------|-------------|
 | Frontend | React, TypeScript, Tailwind CSS, ShadCN-style UI, React Router |
 | Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL, Prisma ORM |
+| Database | MongoDB (Mongoose) |
 | Auth | Google OAuth 2.0 |
 | Email | Gmail API |
 
 ## Prerequisites
 
 - Node.js 18+
-- PostgreSQL running locally (or a remote instance)
+- MongoDB running locally (or MongoDB Atlas connection string)
 - Google Cloud project with OAuth 2.0 credentials
 
 ## Project Structure
@@ -48,15 +48,25 @@ Required variables:
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` |
 | `SESSION_SECRET` | Random string (min 16 chars) |
 | `ENCRYPTION_KEY` | Random string (min 32 chars) for token encryption |
 | `CLIENT_URL` | `http://localhost:5173` |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017/mail_sender` (or Atlas URI) |
 
-### 3. Google Cloud Console setup
+### 3. Start MongoDB
+
+**Local install:** make sure MongoDB is running on port `27017`.
+
+**Docker (optional):**
+
+```bash
+docker run -d --name mail-sender-mongo -p 27017:27017 mongo:7
+```
+
+### 4. Google Cloud Console setup
 
 1. Create a project at [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable the **Gmail API**
@@ -71,13 +81,6 @@ Required OAuth scopes:
 - `gmail.compose`
 - `userinfo.profile`
 - `userinfo.email`
-
-### 4. Initialize the database
-
-```bash
-npm run db:generate
-npm run db:push
-```
 
 ### 5. Run the application
 
@@ -129,6 +132,17 @@ bob@gmail.com
 - **25** emails per batch
 - **2-second** delay between batches
 - Failed emails are marked individually; sending continues for remaining recipients
+
+## Storage
+
+Data is persisted in **MongoDB** collections:
+
+- `users` — Google account + encrypted OAuth tokens
+- `campaigns` — campaign name, subject, body, status
+- `recipients` — email addresses per campaign
+- `emaillogs` — send results per recipient
+
+Data survives server restarts.
 
 ## Build for Production
 

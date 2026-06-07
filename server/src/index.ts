@@ -1,8 +1,18 @@
 import { createApp } from './app.js'
 import { env } from './config/env.js'
+import { connectDatabase } from './lib/mongodb.js'
 
-const app = createApp()
+async function start() {
+  await connectDatabase()
 
-app.listen(env.PORT, () => {
-  console.log(`Server running on http://localhost:${env.PORT}`)
+  const app = createApp()
+
+  app.listen(env.PORT, () => {
+    console.log(`Server running on http://localhost:${env.PORT}`)
+  })
+}
+
+start().catch((error) => {
+  console.error('Failed to start server:', error)
+  process.exit(1)
 })
