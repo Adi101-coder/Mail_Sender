@@ -23,7 +23,7 @@ A full-stack web application for connecting Gmail, creating email templates, upl
 ```
 Mail_sender/
 ├── client/          # React frontend (port 5173)
-├── server/          # Express API (port 3001)
+├── backend/         # Express API (port 3001)
 ├── .env.example     # Environment variable template
 └── package.json     # Root scripts
 ```

@@ -17,6 +17,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_REDIRECT_URI: z.string().url(),
   MONGODB_URI: z.string().min(1),
+  MONGODB_DB_NAME: z.string().min(1).default('mail_sender'),
 })
 
 export const env = envSchema.parse(process.env)

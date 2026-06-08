@@ -6,9 +6,13 @@ import { env } from './config/env.js'
 import { errorHandler } from './middleware/error.middleware.js'
 import authRoutes from './routes/auth.routes.js'
 import campaignRoutes from './routes/campaign.routes.js'
+import { getSessionCookieOptions } from './utils/sessionCookie.js'
 
 export function createApp() {
   const app = express()
+
+  // Required behind Railway/reverse proxy for secure cookies
+  app.set('trust proxy', 1)
 
   app.use(
     cors({
@@ -19,15 +23,16 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }))
   app.use(express.urlencoded({ extended: true }))
   app.use(cookieParser())
+
+  const cookieOptions = getSessionCookieOptions()
+
   app.use(
     session({
       secret: env.SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+        ...cookieOptions,
         maxAge: 7 * 24 * 60 * 60 * 1000,
       },
     }),

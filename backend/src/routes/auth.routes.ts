@@ -7,6 +7,7 @@ import {
   handleGoogleCallback,
 } from '../modules/auth/auth.service.js'
 import { getDashboardStats } from '../modules/campaign/campaign.service.js'
+import { getSessionCookieOptions } from '../utils/sessionCookie.js'
 
 const router = Router()
 
@@ -60,7 +61,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 /** Log out and destroy session. */
 router.post('/logout', (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie('connect.sid')
+    res.clearCookie('connect.sid', getSessionCookieOptions())
     res.json({ success: true })
   })
 })
@@ -71,7 +72,7 @@ router.delete('/account', requireAuth, async (req, res, next) => {
     const userId = getUserId(req)
     await deleteUserAccount(userId)
     req.session.destroy(() => {
-      res.clearCookie('connect.sid')
+      res.clearCookie('connect.sid', getSessionCookieOptions())
       res.json({ success: true })
     })
   } catch (error) {

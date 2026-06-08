@@ -1,5 +1,5 @@
 {
-  "name": "mail-sender-server",
+  "name": "mail-sender-backend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
