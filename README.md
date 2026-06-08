@@ -55,6 +55,8 @@ Required variables:
 | `ENCRYPTION_KEY` | Random string (min 32 chars) for token encryption |
 | `CLIENT_URL` | `http://localhost:5173` |
 | `MONGODB_URI` | Full MongoDB Atlas connection string (see below) |
+| `OPENAI_API_KEY` | OpenAI API key (required for AI email personalization) |
+| `AI_MODEL` | Optional OpenAI model (default: `gpt-4o-mini`) |
 
 ### 3. MongoDB Atlas setup
 
@@ -106,8 +108,8 @@ npm run dev
 2. **Dashboard** — View stats and recent campaigns
 3. **Create Campaign** — Set name, subject, and body
 4. **Upload Recipients** — Paste emails or upload CSV (max 500)
-5. **Preview** — Review recipients and email content
-6. **Send** — Sends via Gmail API in batches of 25 with 2s delays
+5. **Preview** — Review base template and AI-personalized previews per recipient
+6. **Send** — AI customizes each email, then sends via Gmail API in batches of 25 with 2s delays
 7. **Sending Status** — Live progress with sent/failed counts
 
 ## API Endpoints
@@ -123,17 +125,22 @@ npm run dev
 | GET | `/api/campaigns` | List campaigns |
 | GET | `/api/campaigns/:id` | Get campaign |
 | POST | `/api/campaigns/:id/recipients` | Add recipients (JSON or CSV) |
+| GET | `/api/campaigns/:id/recipients/:recipientId/preview` | AI-personalized preview for one recipient |
 | POST | `/api/campaigns/:id/send` | Start sending |
 | GET | `/api/campaigns/:id/status` | Send progress |
 
 ## CSV Format
 
+Include an `email` column plus any business details you want the AI agent to use. Column names are flexible — the agent reads all fields and personalizes each email.
+
 ```csv
-email
-john@gmail.com
-alice@gmail.com
-bob@gmail.com
+email,business_name,address,city,industry,notes
+john@acmecorp.com,Acme Corp,123 Main St,Austin,Software,Recently expanded
+alice@bakerysf.com,Alice's Bakery,45 Oak Ave,San Francisco,Food & Beverage,Family-owned since 1998
+bob@greenleaf.io,GreenLeaf Design,88 Park Blvd,Portland,Marketing,Focus on sustainable brands
 ```
+
+Paste-only uploads (no CSV) still work for plain email lists — those recipients receive the same template with no AI customization.
 
 ## Sending Limits
 
@@ -148,7 +155,7 @@ Data is persisted in **MongoDB** collections:
 
 - `users` — Google account + encrypted OAuth tokens
 - `campaigns` — campaign name, subject, body, status
-- `recipients` — email addresses per campaign
+- `recipients` — email addresses + CSV business metadata per campaign
 - `emaillogs` — send results per recipient
 
 Data survives server restarts.
@@ -168,6 +175,6 @@ npm run build
 
 ## Phase 1 Scope
 
-This MVP includes Gmail connect, templates, recipient upload, preview, and send only.
+This MVP includes Gmail connect, templates, CSV-based recipient upload with business metadata, AI-powered per-recipient email personalization, preview, and send.
 
-**Not included:** AI personalization, analytics, tracking, lead enrichment, follow-up sequences, or campaign automation.
+**Not included:** analytics, tracking, lead enrichment, follow-up sequences, or campaign automation.

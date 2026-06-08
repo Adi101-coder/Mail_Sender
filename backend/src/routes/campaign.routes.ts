@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { parse } from 'csv-parse/sync'
 import { z } from 'zod'
 import { getUserId, requireAuth } from '../middleware/auth.middleware.js'
 import {
@@ -10,9 +9,11 @@ import {
 } from '../modules/campaign/campaign.service.js'
 import {
   getCampaignSendStatus,
+  getPersonalizedPreview,
   sendCampaignEmails,
 } from '../modules/email-sending/email-sending.service.js'
 import { addRecipientsToCampaign } from '../modules/recipient/recipient.service.js'
+import { parseRecipientCsv } from '../utils/csvParsing.js'
 import { parseEmailText } from '../utils/emailValidation.js'
 
 const router = Router()
@@ -79,33 +80,27 @@ router.post('/:id/recipients', upload.single('file'), async (req, res, next) => 
       return
     }
 
-    let rawEmails: string[] = []
+    let recipientRows: Array<{ email: string; metadata: Record<string, string> }> = []
 
     if (req.file) {
       const csvContent = req.file.buffer.toString('utf-8')
-      const records = parse(csvContent, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-        relax_column_count: true,
-      }) as Record<string, string>[]
-
-      rawEmails = records
-        .map((row) => row.email ?? row.Email ?? Object.values(row)[0] ?? '')
-        .filter(Boolean)
+      recipientRows = parseRecipientCsv(csvContent)
     } else {
       const body = recipientsBodySchema.parse(req.body)
       if (body.text) {
-        rawEmails = parseEmailText(body.text)
+        recipientRows = parseEmailText(body.text).map((email) => ({
+          email,
+          metadata: {},
+        }))
       } else if (body.emails) {
-        rawEmails = body.emails
+        recipientRows = body.emails.map((email) => ({ email, metadata: {} }))
       } else {
         res.status(400).json({ error: 'Provide emails, text, or a CSV file' })
         return
       }
     }
 
-    const result = await addRecipientsToCampaign(campaign.id, rawEmails)
+    const result = await addRecipientsToCampaign(campaign.id, recipientRows)
     const updated = await getCampaignById(userId, campaign.id)
     res.json({ ...result, campaign: updated })
   } catch (error) {
@@ -129,6 +124,17 @@ router.post('/:id/send', async (req, res, next) => {
     })
 
     res.json({ message: 'Campaign sending started', campaignId: campaign.id })
+  } catch (error) {
+    next(error)
+  }
+})
+
+/** Preview AI-personalized email for a single recipient. */
+router.get('/:id/recipients/:recipientId/preview', async (req, res, next) => {
+  try {
+    const userId = getUserId(req)
+    const preview = await getPersonalizedPreview(userId, req.params.id, req.params.recipientId)
+    res.json(preview)
   } catch (error) {
     next(error)
   }

@@ -39,6 +39,7 @@ const recipientSchema = new mongoose.Schema(
       index: true,
     },
     email: { type: String, required: true },
+    metadata: { type: Map, of: String, default: {} },
     status: {
       type: String,
       enum: ['Pending', 'Sent', 'Failed'],

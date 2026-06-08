@@ -24,8 +24,15 @@ export interface Recipient {
   id: string
   campaignId: string
   email: string
+  metadata: Record<string, string>
   status: RecipientStatus
   sentAt: string | null
+}
+
+export interface PersonalizedPreview {
+  recipient: Recipient
+  template: { subject: string; body: string }
+  personalized: { subject: string; body: string }
 }
 
 export interface DashboardStats {

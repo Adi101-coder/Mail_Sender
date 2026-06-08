@@ -57,10 +57,23 @@ function toCampaign(doc: {
   }
 }
 
+function toMetadataRecord(
+  metadata?: Map<string, string> | Record<string, string> | null,
+): Record<string, string> {
+  if (!metadata) return {}
+
+  if (metadata instanceof Map) {
+    return Object.fromEntries(metadata.entries())
+  }
+
+  return { ...metadata }
+}
+
 function toRecipient(doc: {
   _id: Types.ObjectId
   campaignId: Types.ObjectId
   email: string
+  metadata?: Map<string, string> | Record<string, string> | null
   status: RecipientStatus
   sentAt?: Date | null
 }): Recipient {
@@ -68,6 +81,7 @@ function toRecipient(doc: {
     id: doc._id.toString(),
     campaignId: doc.campaignId.toString(),
     email: doc.email,
+    metadata: toMetadataRecord(doc.metadata),
     status: doc.status,
     sentAt: doc.sentAt ?? null,
   }
@@ -238,7 +252,10 @@ export const store = {
     })
   },
 
-  async replaceRecipients(campaignId: string, emails: string[]): Promise<void> {
+  async replaceRecipients(
+    campaignId: string,
+    recipients: Array<{ email: string; metadata?: Record<string, string> }>,
+  ): Promise<void> {
     const existingRecipients = await RecipientModel.find({ campaignId }).select('_id')
     const recipientIds = existingRecipients.map((r) => r._id)
 
@@ -247,11 +264,12 @@ export const store = {
       await RecipientModel.deleteMany({ _id: { $in: recipientIds } })
     }
 
-    if (emails.length > 0) {
+    if (recipients.length > 0) {
       await RecipientModel.insertMany(
-        emails.map((email) => ({
+        recipients.map((recipient) => ({
           campaignId,
-          email,
+          email: recipient.email,
+          metadata: recipient.metadata ?? {},
           status: 'Pending',
           sentAt: null,
         })),

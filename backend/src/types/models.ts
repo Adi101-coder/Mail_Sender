@@ -26,6 +26,7 @@ export interface Recipient {
   id: string
   campaignId: string
   email: string
+  metadata: Record<string, string>
   status: RecipientStatus
   sentAt: Date | null
 }

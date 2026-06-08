@@ -4,6 +4,7 @@ import type { CampaignStatus } from '../../types/models.js'
 import { sleep } from '../../utils/sleep.js'
 import { updateCampaignStatus } from '../campaign/campaign.service.js'
 import { sendGmailMessage } from '../gmail/gmail.service.js'
+import { personalizeEmailForRecipient } from '../personalization/personalization.service.js'
 
 /** Send emails to all pending recipients in batches with rate limiting. */
 export async function sendCampaignEmails(userId: string, campaignId: string) {
@@ -33,11 +34,17 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
     await Promise.all(
       batch.map(async (recipient) => {
         try {
+          const personalized = await personalizeEmailForRecipient(
+            campaign.subject,
+            campaign.body,
+            recipient,
+          )
+
           const gmailMessageId = await sendGmailMessage({
             userId,
             to: recipient.email,
-            subject: campaign.subject,
-            body: campaign.body,
+            subject: personalized.subject,
+            body: personalized.body,
           })
 
           await store.updateRecipient(recipient.id, { status: 'Sent', sentAt: new Date() })
@@ -89,4 +96,35 @@ export async function getCampaignSendStatus(userId: string, campaignId: string) 
   }
 
   return { campaign, stats }
+}
+
+/** Generate a personalized email preview for one recipient. */
+export async function getPersonalizedPreview(
+  userId: string,
+  campaignId: string,
+  recipientId: string,
+) {
+  const campaign = await store.getCampaign(campaignId, userId)
+
+  if (!campaign) {
+    throw new Error('Campaign not found')
+  }
+
+  const recipient = campaign.recipients?.find((r) => r.id === recipientId)
+
+  if (!recipient) {
+    throw new Error('Recipient not found')
+  }
+
+  const personalized = await personalizeEmailForRecipient(
+    campaign.subject,
+    campaign.body,
+    recipient,
+  )
+
+  return {
+    recipient,
+    template: { subject: campaign.subject, body: campaign.body },
+    personalized,
+  }
 }

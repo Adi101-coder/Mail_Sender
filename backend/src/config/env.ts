@@ -18,6 +18,7 @@ const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().url(),
   MONGODB_URI: z.string().min(1),
   MONGODB_DB_NAME: z.string().min(1).default('mail_sender'),
+  OPENAI_API_KEY: z.string().min(1).optional(),
 })
 
 export const env = envSchema.parse(process.env)
@@ -32,3 +33,4 @@ export const GOOGLE_SCOPES = [
 export const MAX_RECIPIENTS_PER_CAMPAIGN = 500
 export const BATCH_SIZE = 25
 export const BATCH_DELAY_MS = 2000
+export const AI_MODEL = process.env.AI_MODEL ?? 'gpt-4o-mini'

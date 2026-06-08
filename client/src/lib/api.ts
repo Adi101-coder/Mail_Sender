@@ -61,4 +61,9 @@ export const api = {
 
   getCampaignStatus: (id: string) =>
     request<import('@/types').CampaignSendStatus>(`/campaigns/${id}/status`),
+
+  getPersonalizedPreview: (campaignId: string, recipientId: string) =>
+    request<import('@/types').PersonalizedPreview>(
+      `/campaigns/${campaignId}/recipients/${recipientId}/preview`,
+    ),
 }

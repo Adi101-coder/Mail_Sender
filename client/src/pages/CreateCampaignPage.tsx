@@ -35,14 +35,17 @@ export function CreateCampaignPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create Campaign</h1>
-        <p className="text-muted-foreground">Define your email template for this campaign.</p>
+        <p className="text-muted-foreground">
+          Write a base email template. When you upload a CSV with business details, an AI agent will
+          customize this for each recipient.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Campaign Details</CardTitle>
           <CardDescription>
-            Enter the campaign name, subject line, and email body.
+            This is the starting template — the AI agent adapts it per business using your CSV data.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -57,14 +57,17 @@ export function UploadRecipientsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Upload Recipients</h1>
         <p className="text-muted-foreground">
-          Add up to 500 recipient emails via paste or CSV upload.
+          Add up to 500 recipients via paste or CSV upload. Include business details in your CSV
+          and the AI agent will personalize each email.
         </p>
       </div>
 
       <Alert>
         <AlertDescription>
-          CSV format: single column header <code className="rounded bg-muted px-1">email</code> with
-          one address per row. Duplicates and invalid emails are removed automatically.
+          CSV format: include an <code className="rounded bg-muted px-1">email</code> column plus any
+          business columns you want (e.g. business_name, address, city, industry). The AI agent reads
+          every column and customizes each email accordingly. Duplicates and invalid emails are
+          removed automatically.
         </AlertDescription>
       </Alert>
 
@@ -96,7 +99,9 @@ export function UploadRecipientsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Method 2: Upload CSV</CardTitle>
-          <CardDescription>Upload a .csv file with an email column.</CardDescription>
+          <CardDescription>
+            Upload a .csv with email plus business details (name, address, etc.).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Label

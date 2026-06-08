@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Send } from 'lucide-react'
+import { ArrowLeft, Send, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,12 +15,22 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import type { Campaign, RecipientStatus } from '@/types'
+import type { Campaign, PersonalizedPreview, Recipient, RecipientStatus } from '@/types'
 
 const recipientVariant: Record<RecipientStatus, 'secondary' | 'success' | 'destructive'> = {
   Pending: 'secondary',
   Sent: 'success',
   Failed: 'destructive',
+}
+
+function formatMetadataSummary(metadata: Record<string, string>): string {
+  const entries = Object.entries(metadata)
+  if (entries.length === 0) return '—'
+
+  return entries
+    .slice(0, 2)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' · ')
 }
 
 export function PreviewPage() {
@@ -29,15 +39,38 @@ export function PreviewPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null)
+  const [preview, setPreview] = useState<PersonalizedPreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     if (!id) return
     api
       .getCampaign(id)
-      .then(setCampaign)
+      .then((loadedCampaign) => {
+        setCampaign(loadedCampaign)
+        const firstRecipient = loadedCampaign.recipients?.[0]
+        if (firstRecipient) {
+          setSelectedRecipientId(firstRecipient.id)
+        }
+      })
       .catch(() => toast.error('Failed to load campaign'))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!id || !selectedRecipientId) return
+
+    setPreviewLoading(true)
+    api
+      .getPersonalizedPreview(id, selectedRecipientId)
+      .then(setPreview)
+      .catch((error) => {
+        setPreview(null)
+        toast.error(error instanceof Error ? error.message : 'Failed to generate preview')
+      })
+      .finally(() => setPreviewLoading(false))
+  }, [id, selectedRecipientId])
 
   const handleSend = async () => {
     if (!id || !campaign?.recipients?.length) {
@@ -56,6 +89,10 @@ export function PreviewPage() {
     }
   }
 
+  const handleRecipientSelect = (recipient: Recipient) => {
+    setSelectedRecipientId(recipient.id)
+  }
+
   if (loading) {
     return <Skeleton className="h-96 w-full" />
   }
@@ -65,6 +102,7 @@ export function PreviewPage() {
   }
 
   const recipients = campaign.recipients ?? []
+  const hasMetadata = recipients.some((recipient) => Object.keys(recipient.metadata ?? {}).length > 0)
 
   return (
     <div className="space-y-6">
@@ -87,13 +125,49 @@ export function PreviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Email Preview</CardTitle>
-          <CardDescription>Subject: {campaign.subject}</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Base Template
+          </CardTitle>
+          <CardDescription>
+            {hasMetadata
+              ? 'The AI agent uses this as a starting point and customizes each email using CSV business data.'
+              : 'All recipients will receive this same email. Upload a CSV with extra columns to enable AI personalization.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          <p className="mb-2 text-sm font-medium">Subject: {campaign.subject}</p>
           <pre className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{campaign.body}</pre>
         </CardContent>
       </Card>
+
+      {selectedRecipientId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Personalized Preview</CardTitle>
+            <CardDescription>
+              Select a recipient below to see how the AI agent customizes the email for them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {previewLoading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : preview ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  For: <span className="font-medium text-foreground">{preview.recipient.email}</span>
+                </p>
+                <p className="text-sm font-medium">Subject: {preview.personalized.subject}</p>
+                <pre className="whitespace-pre-wrap rounded-md border bg-background p-4 text-sm">
+                  {preview.personalized.body}
+                </pre>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Preview unavailable.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -115,15 +189,21 @@ export function PreviewPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Recipient Email</TableHead>
-                  <TableHead>Subject</TableHead>
+                  <TableHead>Business Details</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recipients.map((recipient) => (
-                  <TableRow key={recipient.id}>
+                  <TableRow
+                    key={recipient.id}
+                    className={selectedRecipientId === recipient.id ? 'bg-muted/50' : 'cursor-pointer'}
+                    onClick={() => handleRecipientSelect(recipient)}
+                  >
                     <TableCell>{recipient.email}</TableCell>
-                    <TableCell>{campaign.subject}</TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                      {formatMetadataSummary(recipient.metadata ?? {})}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={recipientVariant[recipient.status]}>
                         {recipient.status === 'Pending' ? 'Ready' : recipient.status}
