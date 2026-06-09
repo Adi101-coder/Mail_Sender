@@ -1,6 +1,8 @@
 import { z } from 'zod'
-import { AI_MODEL, env } from '../../config/env.js'
+import { AI_MODEL, OPENAI_BASE_URL, env } from '../../config/env.js'
 import type { Recipient } from '../../types/models.js'
+import { CANONICAL_EMAIL_EXAMPLE } from './emailTemplate.js'
+import { applyMandatoryContent } from './mandatoryContent.js'
 
 export interface PersonalizedEmail {
   subject: string
@@ -23,23 +25,37 @@ function buildPersonalizationPrompt(
 ): string {
   const metadataJson = JSON.stringify(recipient.metadata, null, 2)
 
-  return `You personalize outreach emails for individual businesses.
+  return `You are Rik Jackson's outreach email assistant. Personalize insurance broker emails for auto dealerships in Alberta. Always respond with valid JSON only.
 
-Base email template:
+CANONICAL EXAMPLE (follow this structure, tone, and sections closely):
+${CANONICAL_EMAIL_EXAMPLE}
+
+Base email template to adapt:
 Subject: ${templateSubject}
 Body:
 ${templateBody}
 
 Recipient email: ${recipient.email}
-Recipient business data (from CSV — column names vary, interpret them yourself):
+Recipient business data (from CSV — column names vary; detect business name, address, street, city, etc.):
 ${metadataJson}
 
-Instructions:
-1. Read every field in the recipient data and use relevant details naturally (business name, address, city, industry, services, owner name, website, notes, etc.).
-2. Keep the same overall goal, tone, and call-to-action as the base template.
-3. Do not invent facts that are not supported by the template or recipient data.
-4. Make each email feel written specifically for this business, not like a mass mail merge.
-5. Return ONLY valid JSON with this exact shape: {"subject":"...","body":"..."}`
+Personalization rules:
+1. Subject format: "Helping [Business Name] Close More Deals. Let's Talk" — use the real business name from the CSV.
+2. Open with "Hi [Business Name]," and reference their street, area, or address naturally (e.g. "customers on Coronet Road").
+3. Keep all value-proposition bullet points from the template unless the template omits them.
+4. If a full address is in the CSV, include an offer to stop by their location and drop off business cards (like the example).
+5. Include availability: weekdays 8:00 AM–10:00 AM, weekends 8:00 AM–4:00 PM.
+6. Include the Calendly booking link: ${env.MANDATORY_CALENDLY_URL}
+7. End with "Would any of those times work for a call this week?" and Rik's full signature (name, BrokerLink, email, phone).
+8. Do not invent facts not supported by the template or CSV data.
+9. Return ONLY valid JSON: {"subject":"...","body":"..."}`
+}
+
+function finalizeEmail(subject: string, body: string): PersonalizedEmail {
+  return {
+    subject,
+    body: applyMandatoryContent(body),
+  }
 }
 
 /** Use the AI agent to customize subject and body for one recipient. */
@@ -49,7 +65,7 @@ export async function personalizeEmailForRecipient(
   recipient: Pick<Recipient, 'email' | 'metadata'>,
 ): Promise<PersonalizedEmail> {
   if (!hasRecipientMetadata(recipient.metadata)) {
-    return { subject: templateSubject, body: templateBody }
+    return finalizeEmail(templateSubject, templateBody)
   }
 
   if (!env.OPENAI_API_KEY) {
@@ -58,7 +74,7 @@ export async function personalizeEmailForRecipient(
     )
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${env.OPENAI_API_KEY}`,
@@ -72,7 +88,7 @@ export async function personalizeEmailForRecipient(
         {
           role: 'system',
           content:
-            'You are an expert B2B email copywriter. You personalize emails using provided business data. Always respond with valid JSON only.',
+            "You are Rik Jackson's outreach email assistant. Personalize insurance broker emails for auto dealerships in Alberta. Always respond with valid JSON only.",
         },
         {
           role: 'user',
@@ -99,5 +115,5 @@ export async function personalizeEmailForRecipient(
 
   const parsed = personalizedEmailSchema.parse(JSON.parse(content))
 
-  return parsed
+  return finalizeEmail(parsed.subject, parsed.body)
 }

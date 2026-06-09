@@ -55,8 +55,10 @@ Required variables:
 | `ENCRYPTION_KEY` | Random string (min 32 chars) for token encryption |
 | `CLIENT_URL` | `http://localhost:5173` |
 | `MONGODB_URI` | Full MongoDB Atlas connection string (see below) |
-| `OPENAI_API_KEY` | OpenAI API key (required for AI email personalization) |
-| `AI_MODEL` | Optional OpenAI model (default: `gpt-4o-mini`) |
+| `OPENAI_API_KEY` | OpenAI or OpenRouter API key (required for AI email personalization) |
+| `OPENAI_BASE_URL` | Optional API base URL (auto-detects OpenRouter for `sk-or-` keys) |
+| `AI_MODEL` | Optional model (default: `openai/gpt-4o-mini` on OpenRouter, `gpt-4o-mini` on OpenAI) |
+| `MANDATORY_CALENDLY_URL` | Calendly link appended to every email (default: Rik Insurance 30-min booking) |
 
 ### 3. MongoDB Atlas setup
 

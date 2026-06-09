@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { DEFAULT_CAMPAIGN_BODY, DEFAULT_CAMPAIGN_SUBJECT } from '@/constants/emailTemplate'
 
 export function CreateCampaignPage() {
   const navigate = useNavigate()
@@ -45,11 +46,25 @@ export function CreateCampaignPage() {
         <CardHeader>
           <CardTitle>Campaign Details</CardTitle>
           <CardDescription>
-            This is the starting template — the AI agent adapts it per business using your CSV data.
+            Use the default outreach template or write your own — the AI adapts it per business using
+            your CSV data.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setForm({
+                  campaignName: form.campaignName || 'Dealership Outreach',
+                  subject: DEFAULT_CAMPAIGN_SUBJECT,
+                  body: DEFAULT_CAMPAIGN_BODY,
+                })
+              }
+            >
+              Load default outreach template
+            </Button>
             <div className="space-y-2">
               <Label htmlFor="campaignName">Campaign Name</Label>
               <Input
@@ -64,7 +79,7 @@ export function CreateCampaignPage() {
               <Label htmlFor="subject">Email Subject</Label>
               <Input
                 id="subject"
-                placeholder="Partnership Opportunity"
+                placeholder={DEFAULT_CAMPAIGN_SUBJECT}
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 required
@@ -74,8 +89,8 @@ export function CreateCampaignPage() {
               <Label htmlFor="body">Email Body</Label>
               <Textarea
                 id="body"
-                placeholder={`Hello,\n\nWe would like to discuss a potential collaboration.\n\nRegards,\nAdit`}
-                rows={10}
+                placeholder={DEFAULT_CAMPAIGN_BODY}
+                rows={18}
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
                 required
