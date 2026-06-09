@@ -44,6 +44,7 @@ export const GOOGLE_SCOPES = [
 export const MAX_RECIPIENTS_PER_CAMPAIGN = 500
 export const BATCH_SIZE = 25
 export const BATCH_DELAY_MS = 2000
+export const SCHEDULER_POLL_INTERVAL_MS = 30_000
 function resolveOpenAiBaseUrl(): string {
   if (process.env.OPENAI_BASE_URL) return process.env.OPENAI_BASE_URL
   const key = process.env.OPENAI_API_KEY ?? ''

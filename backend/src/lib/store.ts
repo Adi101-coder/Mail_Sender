@@ -44,6 +44,7 @@ function toCampaign(doc: {
   subject: string
   body: string
   status: CampaignStatus
+  scheduledAt?: Date | null
   createdAt: Date
 }): Campaign {
   return {
@@ -53,6 +54,7 @@ function toCampaign(doc: {
     subject: doc.subject,
     body: doc.body,
     status: doc.status,
+    scheduledAt: doc.scheduledAt ?? null,
     createdAt: doc.createdAt,
   }
 }
@@ -234,6 +236,55 @@ export const store = {
       { new: true },
     )
     return campaign ? toCampaign(campaign) : null
+  },
+
+  async scheduleCampaign(campaignId: string, scheduledAt: Date): Promise<Campaign | null> {
+    const campaign = await CampaignModel.findByIdAndUpdate(
+      campaignId,
+      { status: 'Scheduled', scheduledAt },
+      { new: true },
+    )
+    return campaign ? toCampaign(campaign) : null
+  },
+
+  async clearCampaignSchedule(campaignId: string): Promise<Campaign | null> {
+    const campaign = await CampaignModel.findByIdAndUpdate(
+      campaignId,
+      { status: 'Draft', scheduledAt: null },
+      { new: true },
+    )
+    return campaign ? toCampaign(campaign) : null
+  },
+
+  async claimDueScheduledCampaigns(): Promise<Array<{ id: string; userId: string }>> {
+    const now = new Date()
+    const dueCampaigns = await CampaignModel.find({
+      status: 'Scheduled',
+      scheduledAt: { $lte: now },
+    }).select('_id userId')
+
+    const claimed: Array<{ id: string; userId: string }> = []
+
+    for (const campaign of dueCampaigns) {
+      const updated = await CampaignModel.findOneAndUpdate(
+        {
+          _id: campaign._id,
+          status: 'Scheduled',
+          scheduledAt: { $lte: now },
+        },
+        { status: 'Sending' },
+        { new: true },
+      )
+
+      if (updated) {
+        claimed.push({
+          id: updated._id.toString(),
+          userId: updated.userId.toString(),
+        })
+      }
+    }
+
+    return claimed
   },
 
   async countCampaigns(userId: string): Promise<number> {

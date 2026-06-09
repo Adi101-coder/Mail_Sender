@@ -111,8 +111,8 @@ npm run dev
 3. **Create Campaign** — Set name, subject, and body
 4. **Upload Recipients** — Paste emails or upload CSV (max 500)
 5. **Preview** — Review base template and AI-personalized previews per recipient
-6. **Send** — AI customizes each email, then sends via Gmail API in batches of 25 with 2s delays
-7. **Sending Status** — Live progress with sent/failed counts
+6. **Send or Schedule** — Send immediately, or pick a date/time to send later
+7. **Sending Status** — Live progress with sent/failed counts (or scheduled countdown)
 
 ## API Endpoints
 
@@ -128,7 +128,9 @@ npm run dev
 | GET | `/api/campaigns/:id` | Get campaign |
 | POST | `/api/campaigns/:id/recipients` | Add recipients (JSON or CSV) |
 | GET | `/api/campaigns/:id/recipients/:recipientId/preview` | AI-personalized preview for one recipient |
-| POST | `/api/campaigns/:id/send` | Start sending |
+| POST | `/api/campaigns/:id/schedule` | Schedule send for a future time |
+| DELETE | `/api/campaigns/:id/schedule` | Cancel a scheduled send |
+| POST | `/api/campaigns/:id/send` | Start sending immediately |
 | GET | `/api/campaigns/:id/status` | Send progress |
 
 ## CSV Format

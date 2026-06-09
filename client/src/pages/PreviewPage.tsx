@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Send, Sparkles } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Send, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -33,12 +35,25 @@ function formatMetadataSummary(metadata: Record<string, string>): string {
     .join(' · ')
 }
 
+function toDatetimeLocalValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function defaultScheduleValue(): string {
+  const nextHour = new Date(Date.now() + 60 * 60 * 1000)
+  nextHour.setSeconds(0, 0)
+  return toDatetimeLocalValue(nextHour)
+}
+
 export function PreviewPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState(defaultScheduleValue)
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null)
   const [preview, setPreview] = useState<PersonalizedPreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -49,6 +64,9 @@ export function PreviewPage() {
       .getCampaign(id)
       .then((loadedCampaign) => {
         setCampaign(loadedCampaign)
+        if (loadedCampaign.scheduledAt) {
+          setScheduledAt(toDatetimeLocalValue(new Date(loadedCampaign.scheduledAt)))
+        }
         const firstRecipient = loadedCampaign.recipients?.[0]
         if (firstRecipient) {
           setSelectedRecipientId(firstRecipient.id)
@@ -89,6 +107,44 @@ export function PreviewPage() {
     }
   }
 
+  const handleSchedule = async () => {
+    if (!id || !campaign?.recipients?.length) {
+      toast.error('Add recipients before scheduling')
+      return
+    }
+
+    const scheduledDate = new Date(scheduledAt)
+    if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
+      toast.error('Choose a future date and time')
+      return
+    }
+
+    setScheduling(true)
+    try {
+      await api.scheduleCampaign(id, scheduledDate.toISOString())
+      toast.success(`Campaign scheduled for ${scheduledDate.toLocaleString()}`)
+      navigate(`/campaigns/${id}/sending`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to schedule campaign')
+    } finally {
+      setScheduling(false)
+    }
+  }
+
+  const handleCancelSchedule = async () => {
+    if (!id) return
+    setScheduling(true)
+    try {
+      const status = await api.cancelSchedule(id)
+      setCampaign(status.campaign)
+      toast.success('Schedule cancelled')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel schedule')
+    } finally {
+      setScheduling(false)
+    }
+  }
+
   const handleRecipientSelect = (recipient: Recipient) => {
     setSelectedRecipientId(recipient.id)
   }
@@ -103,6 +159,8 @@ export function PreviewPage() {
 
   const recipients = campaign.recipients ?? []
   const hasMetadata = recipients.some((recipient) => Object.keys(recipient.metadata ?? {}).length > 0)
+  const isScheduled = campaign.status === 'Scheduled'
+  const canSendOrSchedule = recipients.length > 0 && campaign.status !== 'Sending' && campaign.status !== 'Completed'
 
   return (
     <div className="space-y-6">
@@ -116,12 +174,61 @@ export function PreviewPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button onClick={handleSend} disabled={sending || recipients.length === 0}>
+          <Button onClick={handleSend} disabled={sending || !canSendOrSchedule}>
             <Send className="mr-2 h-4 w-4" />
-            {sending ? 'Starting...' : 'Send Campaign'}
+            {sending ? 'Starting...' : 'Send Now'}
           </Button>
         </div>
       </div>
+
+      {isScheduled && campaign.scheduledAt && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <CalendarClock className="h-4 w-4 text-amber-700" />
+              <span>
+                Scheduled to send on{' '}
+                <strong>{new Date(campaign.scheduledAt).toLocaleString()}</strong>
+              </span>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleCancelSchedule} disabled={scheduling}>
+              Cancel schedule
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5" />
+            Schedule Send
+          </CardTitle>
+          <CardDescription>
+            Pick a date and time to automatically send personalized emails to all recipients.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="scheduledAt">Send at</Label>
+            <Input
+              id="scheduledAt"
+              type="datetime-local"
+              value={scheduledAt}
+              min={toDatetimeLocalValue(new Date())}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              disabled={!canSendOrSchedule}
+            />
+          </div>
+          <Button
+            onClick={handleSchedule}
+            disabled={scheduling || !canSendOrSchedule}
+            className="sm:mb-0.5"
+          >
+            {scheduling ? 'Scheduling...' : isScheduled ? 'Reschedule' : 'Schedule Send'}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

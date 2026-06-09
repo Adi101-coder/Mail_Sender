@@ -59,6 +59,18 @@ export const api = {
       method: 'POST',
     }),
 
+  scheduleCampaign: (id: string, scheduledAt: string) =>
+    request<import('@/types').CampaignSendStatus & { message: string; scheduledAt: string }>(
+      `/campaigns/${id}/schedule`,
+      { method: 'POST', body: JSON.stringify({ scheduledAt }) },
+    ),
+
+  cancelSchedule: (id: string) =>
+    request<import('@/types').CampaignSendStatus & { message: string }>(
+      `/campaigns/${id}/schedule`,
+      { method: 'DELETE' },
+    ),
+
   getCampaignStatus: (id: string) =>
     request<import('@/types').CampaignSendStatus>(`/campaigns/${id}/status`),
 

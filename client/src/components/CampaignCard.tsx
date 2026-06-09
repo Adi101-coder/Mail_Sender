@@ -6,6 +6,7 @@ import type { Campaign, CampaignStatus } from '@/types'
 
 const statusVariant: Record<CampaignStatus, 'secondary' | 'warning' | 'success' | 'destructive'> = {
   Draft: 'secondary',
+  Scheduled: 'warning',
   Sending: 'warning',
   Completed: 'success',
   Failed: 'destructive',
@@ -36,7 +37,9 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </span>
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {new Date(campaign.createdAt).toLocaleDateString()}
+              {campaign.status === 'Scheduled' && campaign.scheduledAt
+                ? `Sends ${new Date(campaign.scheduledAt).toLocaleString()}`
+                : new Date(campaign.createdAt).toLocaleDateString()}
             </span>
           </div>
         </CardContent>

@@ -6,6 +6,8 @@ import { updateCampaignStatus } from '../campaign/campaign.service.js'
 import { sendGmailMessage } from '../gmail/gmail.service.js'
 import { personalizeEmailForRecipient } from '../personalization/personalization.service.js'
 
+const BLOCKED_SEND_STATUSES: CampaignStatus[] = ['Sending', 'Completed']
+
 /** Send emails to all pending recipients in batches with rate limiting. */
 export async function sendCampaignEmails(userId: string, campaignId: string) {
   const campaign = await store.getCampaign(campaignId, userId)
@@ -14,13 +16,19 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
     throw new Error('Campaign not found')
   }
 
+  if (BLOCKED_SEND_STATUSES.includes(campaign.status)) {
+    return getCampaignSendStatus(userId, campaignId)
+  }
+
   const campaignRecipients = campaign.recipients ?? []
 
   if (campaignRecipients.length === 0) {
     throw new Error('No recipients to send to')
   }
 
-  await updateCampaignStatus(campaignId, 'Sending')
+  if (campaign.status !== 'Sending') {
+    await updateCampaignStatus(campaignId, 'Sending')
+  }
 
   const pendingRecipients = campaignRecipients.filter(
     (r) => r.status === 'Pending' || r.status === 'Failed',
@@ -127,4 +135,52 @@ export async function getPersonalizedPreview(
     template: { subject: campaign.subject, body: campaign.body },
     personalized,
   }
+}
+
+/** Schedule a campaign to send at a specific future time. */
+export async function scheduleCampaignSend(
+  userId: string,
+  campaignId: string,
+  scheduledAt: Date,
+) {
+  const campaign = await store.getCampaign(campaignId, userId)
+
+  if (!campaign) {
+    throw new Error('Campaign not found')
+  }
+
+  if (!campaign.recipients?.length) {
+    throw new Error('No recipients to send to')
+  }
+
+  if (campaign.status === 'Sending' || campaign.status === 'Completed') {
+    throw new Error('Campaign cannot be scheduled in its current state')
+  }
+
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error('Scheduled time must be in the future')
+  }
+
+  const updated = await store.scheduleCampaign(campaignId, scheduledAt)
+  if (!updated) throw new Error('Campaign not found')
+
+  return getCampaignSendStatus(userId, campaignId)
+}
+
+/** Cancel a scheduled send and return the campaign to draft. */
+export async function cancelScheduledSend(userId: string, campaignId: string) {
+  const campaign = await store.getCampaign(campaignId, userId)
+
+  if (!campaign) {
+    throw new Error('Campaign not found')
+  }
+
+  if (campaign.status !== 'Scheduled') {
+    throw new Error('Campaign is not scheduled')
+  }
+
+  const updated = await store.clearCampaignSchedule(campaignId)
+  if (!updated) throw new Error('Campaign not found')
+
+  return getCampaignSendStatus(userId, campaignId)
 }

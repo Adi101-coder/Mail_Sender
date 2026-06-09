@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,6 +54,7 @@ export function SendingStatusPage() {
 
   const { campaign, stats } = status
   const progress = stats.total > 0 ? ((stats.sent + stats.failed) / stats.total) * 100 : 0
+  const isScheduled = campaign.status === 'Scheduled'
   const isComplete = campaign.status === 'Completed' || campaign.status === 'Failed'
 
   return (
@@ -75,7 +76,9 @@ export function SendingStatusPage() {
                   ? 'success'
                   : campaign.status === 'Failed'
                     ? 'destructive'
-                    : 'warning'
+                    : campaign.status === 'Scheduled'
+                      ? 'secondary'
+                      : 'warning'
               }
             >
               {campaign.status}
@@ -111,20 +114,41 @@ export function SendingStatusPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Progress</CardTitle>
-          <CardDescription>
-            Sending in batches of 25 with a 2-second delay between batches.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Progress value={progress} />
-          <p className="text-sm text-muted-foreground">
-            {stats.sent + stats.failed} of {stats.total} processed ({Math.round(progress)}%)
-          </p>
-        </CardContent>
-      </Card>
+      {isScheduled && campaign.scheduledAt ? (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5" />
+              Scheduled Send
+            </CardTitle>
+            <CardDescription>
+              Emails will go out automatically at the time below. Keep the server running so the
+              scheduler can trigger the send.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg font-semibold">{new Date(campaign.scheduledAt).toLocaleString()}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {stats.total} recipients queued · waiting to send
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Progress</CardTitle>
+            <CardDescription>
+              Sending in batches of 25 with a 2-second delay between batches.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Progress value={progress} />
+            <p className="text-sm text-muted-foreground">
+              {stats.sent + stats.failed} of {stats.total} processed ({Math.round(progress)}%)
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

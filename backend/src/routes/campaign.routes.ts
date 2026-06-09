@@ -8,8 +8,10 @@ import {
   listCampaigns,
 } from '../modules/campaign/campaign.service.js'
 import {
+  cancelScheduledSend,
   getCampaignSendStatus,
   getPersonalizedPreview,
+  scheduleCampaignSend,
   sendCampaignEmails,
 } from '../modules/email-sending/email-sending.service.js'
 import { addRecipientsToCampaign } from '../modules/recipient/recipient.service.js'
@@ -28,6 +30,10 @@ const createCampaignSchema = z.object({
 const recipientsBodySchema = z.object({
   emails: z.array(z.string()).optional(),
   text: z.string().optional(),
+})
+
+const scheduleCampaignSchema = z.object({
+  scheduledAt: z.string().datetime(),
 })
 
 router.use(requireAuth)
@@ -108,6 +114,34 @@ router.post('/:id/recipients', upload.single('file'), async (req, res, next) => 
   }
 })
 
+/** Schedule campaign emails for a future time. */
+router.post('/:id/schedule', async (req, res, next) => {
+  try {
+    const userId = getUserId(req)
+    const { scheduledAt } = scheduleCampaignSchema.parse(req.body)
+    const status = await scheduleCampaignSend(userId, req.params.id, new Date(scheduledAt))
+    res.json({
+      message: 'Campaign scheduled',
+      campaignId: req.params.id,
+      scheduledAt,
+      ...status,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+/** Cancel a scheduled campaign send. */
+router.delete('/:id/schedule', async (req, res, next) => {
+  try {
+    const userId = getUserId(req)
+    const status = await cancelScheduledSend(userId, req.params.id)
+    res.json({ message: 'Schedule cancelled', ...status })
+  } catch (error) {
+    next(error)
+  }
+})
+
 /** Start sending campaign emails (runs asynchronously). */
 router.post('/:id/send', async (req, res, next) => {
   try {
@@ -116,6 +150,10 @@ router.post('/:id/send', async (req, res, next) => {
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' })
       return
+    }
+
+    if (campaign.status === 'Scheduled') {
+      await cancelScheduledSend(userId, campaign.id)
     }
 
     // Run sending in background so the client can poll status

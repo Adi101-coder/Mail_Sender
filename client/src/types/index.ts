@@ -1,4 +1,4 @@
-export type CampaignStatus = 'Draft' | 'Sending' | 'Completed' | 'Failed'
+export type CampaignStatus = 'Draft' | 'Scheduled' | 'Sending' | 'Completed' | 'Failed'
 export type RecipientStatus = 'Pending' | 'Sent' | 'Failed'
 
 export interface User {
@@ -15,6 +15,7 @@ export interface Campaign {
   subject: string
   body: string
   status: CampaignStatus
+  scheduledAt: string | null
   createdAt: string
   recipients?: Recipient[]
   _count?: { recipients: number }

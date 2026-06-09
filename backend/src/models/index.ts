@@ -21,12 +21,15 @@ const campaignSchema = new mongoose.Schema(
     body: { type: String, required: true },
     status: {
       type: String,
-      enum: ['Draft', 'Sending', 'Completed', 'Failed'],
+      enum: ['Draft', 'Scheduled', 'Sending', 'Completed', 'Failed'],
       default: 'Draft',
     },
+    scheduledAt: { type: Date, default: null, index: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 )
+
+campaignSchema.index({ status: 1, scheduledAt: 1 })
 
 export const CampaignModel = mongoose.model('Campaign', campaignSchema)
 

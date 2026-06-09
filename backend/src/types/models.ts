@@ -1,4 +1,4 @@
-export type CampaignStatus = 'Draft' | 'Sending' | 'Completed' | 'Failed'
+export type CampaignStatus = 'Draft' | 'Scheduled' | 'Sending' | 'Completed' | 'Failed'
 export type RecipientStatus = 'Pending' | 'Sent' | 'Failed'
 export type EmailLogStatus = 'Sent' | 'Failed'
 
@@ -19,6 +19,7 @@ export interface Campaign {
   subject: string
   body: string
   status: CampaignStatus
+  scheduledAt: Date | null
   createdAt: Date
 }
 

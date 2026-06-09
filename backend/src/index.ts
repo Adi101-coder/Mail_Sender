@@ -1,9 +1,11 @@
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { connectDatabase } from './lib/mongodb.js'
+import { startCampaignScheduler } from './modules/scheduling/scheduler.service.js'
 
 async function start() {
   await connectDatabase()
+  startCampaignScheduler()
 
   const app = createApp()
 
