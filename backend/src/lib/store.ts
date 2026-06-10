@@ -256,35 +256,39 @@ export const store = {
     return campaign ? toCampaign(campaign) : null
   },
 
-  async claimDueScheduledCampaigns(): Promise<Array<{ id: string; userId: string }>> {
+  async findDueScheduledCampaigns(): Promise<Array<{ id: string; userId: string }>> {
     const now = new Date()
     const dueCampaigns = await CampaignModel.find({
       status: 'Scheduled',
       scheduledAt: { $lte: now },
     }).select('_id userId')
 
-    const claimed: Array<{ id: string; userId: string }> = []
+    return dueCampaigns.map((campaign) => ({
+      id: campaign._id.toString(),
+      userId: campaign.userId.toString(),
+    }))
+  },
 
-    for (const campaign of dueCampaigns) {
-      const updated = await CampaignModel.findOneAndUpdate(
-        {
-          _id: campaign._id,
-          status: 'Scheduled',
-          scheduledAt: { $lte: now },
-        },
-        { status: 'Sending' },
-        { new: true },
-      )
+  /** Recover campaigns stuck in Sending with pending recipients (e.g. after a crash). */
+  async findStuckSendingCampaigns(): Promise<Array<{ id: string; userId: string }>> {
+    const sendingCampaigns = await CampaignModel.find({ status: 'Sending' }).select('_id userId')
+    const stuck: Array<{ id: string; userId: string }> = []
 
-      if (updated) {
-        claimed.push({
-          id: updated._id.toString(),
-          userId: updated.userId.toString(),
+    for (const campaign of sendingCampaigns) {
+      const pendingCount = await RecipientModel.countDocuments({
+        campaignId: campaign._id,
+        status: { $in: ['Pending', 'Failed'] },
+      })
+
+      if (pendingCount > 0) {
+        stuck.push({
+          id: campaign._id.toString(),
+          userId: campaign.userId.toString(),
         })
       }
     }
 
-    return claimed
+    return stuck
   },
 
   async countCampaigns(userId: string): Promise<number> {

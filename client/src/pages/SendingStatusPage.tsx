@@ -122,8 +122,8 @@ export function SendingStatusPage() {
               Scheduled Send
             </CardTitle>
             <CardDescription>
-              Emails will go out automatically at the time below. Keep the server running so the
-              scheduler can trigger the send.
+              Emails will go out automatically at the time below ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+              Keep this app&apos;s backend running — emails are not queued inside Gmail until send time.
             </CardDescription>
           </CardHeader>
           <CardContent>

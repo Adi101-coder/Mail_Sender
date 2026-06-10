@@ -205,7 +205,9 @@ export function PreviewPage() {
             Schedule Send
           </CardTitle>
           <CardDescription>
-            Pick a date and time to automatically send personalized emails to all recipients.
+            Pick a date and time ({Intl.DateTimeFormat().resolvedOptions().timeZone}) to
+            automatically send personalized emails to all recipients. Emails are sent by this app
+            at that time — they will not appear in Gmail&apos;s Scheduled folder until they go out.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">

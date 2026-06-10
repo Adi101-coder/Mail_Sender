@@ -6,17 +6,21 @@ import { updateCampaignStatus } from '../campaign/campaign.service.js'
 import { sendGmailMessage } from '../gmail/gmail.service.js'
 import { personalizeEmailForRecipient } from '../personalization/personalization.service.js'
 
-const BLOCKED_SEND_STATUSES: CampaignStatus[] = ['Sending', 'Completed']
+const activeSends = new Set<string>()
 
 /** Send emails to all pending recipients in batches with rate limiting. */
 export async function sendCampaignEmails(userId: string, campaignId: string) {
+  if (activeSends.has(campaignId)) {
+    return getCampaignSendStatus(userId, campaignId)
+  }
+
   const campaign = await store.getCampaign(campaignId, userId)
 
   if (!campaign) {
     throw new Error('Campaign not found')
   }
 
-  if (BLOCKED_SEND_STATUSES.includes(campaign.status)) {
+  if (campaign.status === 'Completed') {
     return getCampaignSendStatus(userId, campaignId)
   }
 
@@ -26,64 +30,74 @@ export async function sendCampaignEmails(userId: string, campaignId: string) {
     throw new Error('No recipients to send to')
   }
 
-  if (campaign.status !== 'Sending') {
-    await updateCampaignStatus(campaignId, 'Sending')
-  }
-
   const pendingRecipients = campaignRecipients.filter(
     (r) => r.status === 'Pending' || r.status === 'Failed',
   )
 
-  let hasFailures = false
-
-  for (let i = 0; i < pendingRecipients.length; i += BATCH_SIZE) {
-    const batch = pendingRecipients.slice(i, i + BATCH_SIZE)
-
-    await Promise.all(
-      batch.map(async (recipient) => {
-        try {
-          const personalized = await personalizeEmailForRecipient(
-            campaign.subject,
-            campaign.body,
-            recipient,
-          )
-
-          const gmailMessageId = await sendGmailMessage({
-            userId,
-            to: recipient.email,
-            subject: personalized.subject,
-            body: personalized.body,
-          })
-
-          await store.updateRecipient(recipient.id, { status: 'Sent', sentAt: new Date() })
-          await store.createEmailLog({
-            recipientId: recipient.id,
-            gmailMessageId,
-            status: 'Sent',
-          })
-        } catch (error) {
-          hasFailures = true
-          console.error(`Failed to send to ${recipient.email}:`, error)
-
-          await store.updateRecipient(recipient.id, { status: 'Failed' })
-          await store.createEmailLog({
-            recipientId: recipient.id,
-            gmailMessageId: null,
-            status: 'Failed',
-          })
-        }
-      }),
-    )
-
-    if (i + BATCH_SIZE < pendingRecipients.length) {
-      await sleep(BATCH_DELAY_MS)
-    }
+  if (pendingRecipients.length === 0) {
+    return getCampaignSendStatus(userId, campaignId)
   }
 
-  const finalStatus: CampaignStatus = hasFailures ? 'Failed' : 'Completed'
-  await updateCampaignStatus(campaignId, finalStatus)
+  activeSends.add(campaignId)
 
-  return getCampaignSendStatus(userId, campaignId)
+  try {
+    if (campaign.status !== 'Sending') {
+      await updateCampaignStatus(campaignId, 'Sending')
+    }
+
+    let hasFailures = false
+
+    for (let i = 0; i < pendingRecipients.length; i += BATCH_SIZE) {
+      const batch = pendingRecipients.slice(i, i + BATCH_SIZE)
+
+      await Promise.all(
+        batch.map(async (recipient) => {
+          try {
+            const personalized = await personalizeEmailForRecipient(
+              campaign.subject,
+              campaign.body,
+              recipient,
+            )
+
+            const gmailMessageId = await sendGmailMessage({
+              userId,
+              to: recipient.email,
+              subject: personalized.subject,
+              body: personalized.body,
+            })
+
+            await store.updateRecipient(recipient.id, { status: 'Sent', sentAt: new Date() })
+            await store.createEmailLog({
+              recipientId: recipient.id,
+              gmailMessageId,
+              status: 'Sent',
+            })
+          } catch (error) {
+            hasFailures = true
+            console.error(`Failed to send to ${recipient.email}:`, error)
+
+            await store.updateRecipient(recipient.id, { status: 'Failed' })
+            await store.createEmailLog({
+              recipientId: recipient.id,
+              gmailMessageId: null,
+              status: 'Failed',
+            })
+          }
+        }),
+      )
+
+      if (i + BATCH_SIZE < pendingRecipients.length) {
+        await sleep(BATCH_DELAY_MS)
+      }
+    }
+
+    const finalStatus: CampaignStatus = hasFailures ? 'Failed' : 'Completed'
+    await updateCampaignStatus(campaignId, finalStatus)
+
+    return getCampaignSendStatus(userId, campaignId)
+  } finally {
+    activeSends.delete(campaignId)
+  }
 }
 
 /** Get current send progress for a campaign. */
