@@ -9,14 +9,6 @@ function hasCalendlyLink(body: string): boolean {
   return body.includes(env.MANDATORY_CALENDLY_URL)
 }
 
-function hasAvailabilityHours(body: string): boolean {
-  return (
-    /8:?\s*00?\s*AM.*10:?\s*00?\s*AM/i.test(body) ||
-    /8AM.*10AM/i.test(body) ||
-    /weekdays? from 8/i.test(body)
-  )
-}
-
 function hasSignature(body: string): boolean {
   return body.includes(SENDER_SIGNATURE.name) && body.includes(SENDER_SIGNATURE.email)
 }
@@ -25,12 +17,6 @@ function hasSignature(body: string): boolean {
 export function applyMandatoryContent(body: string): string {
   let result = body.trim()
   const additions: string[] = []
-
-  if (!hasAvailabilityHours(result)) {
-    additions.push(
-      "I'm available weekdays from 8:00 AM to 10:00 AM, and weekends from 8:00 AM to 4:00 PM.",
-    )
-  }
 
   if (!hasCalendlyLink(result)) {
     additions.push(buildSchedulingOptionsBlock())

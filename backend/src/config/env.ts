@@ -28,12 +28,6 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env)
 
-/** Availability windows that must appear in every outbound email. */
-export const MANDATORY_AVAILABILITY = {
-  weekday: '8AM - 10AM, Mon - Fri',
-  saturday: '8AM - 4PM, Sat',
-} as const
-
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/gmail.compose',

@@ -1,4 +1,4 @@
-import { MANDATORY_AVAILABILITY, env } from '../../config/env.js'
+import { env } from '../../config/env.js'
 
 export const SENDER_SIGNATURE = {
   name: 'Rik Jackson',
@@ -22,7 +22,7 @@ Here's what I bring to the table:
 - Fast turnaround so your customers drive away sooner
 - Current promotion: clients receive a gift card with every policy placed through me
 
-I'd love to connect on a quick 15-minute call to show you how this fits into your current process. I'm available weekdays from 8:00 AM to 10:00 AM, and weekends from 8:00 AM to 4:00 PM.
+I'd love to connect on a quick 15-minute call to show you how this fits into your current process.
 
 You can also book a time that works for you here: ${env.MANDATORY_CALENDLY_URL}
 
@@ -52,7 +52,7 @@ Here's what I bring to the table:
 - Fast turnaround so your customers drive away sooner
 - Current promotion: clients receive a gift card with every policy placed through me
 
-I'd love to connect on a quick 15-minute call to show you how this fits into your current process. I'm available weekdays from 8:00 AM to 10:00 AM, and weekends from 8:00 AM to 4:00 PM.
+I'd love to connect on a quick 15-minute call to show you how this fits into your current process.
 
 You can also book a time that works for you here: ${env.MANDATORY_CALENDLY_URL}
 
@@ -77,6 +77,5 @@ Phone: ${SENDER_SIGNATURE.phone}`
 }
 
 export function buildSchedulingOptionsBlock(): string {
-  return `You can also book a time that works for you here: ${env.MANDATORY_CALENDLY_URL}
-Alternatively, feel free to call me during my available hours (${MANDATORY_AVAILABILITY.weekday}; ${MANDATORY_AVAILABILITY.saturday}).`
+  return `You can also book a time that works for you here: ${env.MANDATORY_CALENDLY_URL}`
 }

@@ -44,11 +44,10 @@ Personalization rules:
 2. Open with "Hi [Business Name]," and reference their street, area, or address naturally (e.g. "customers on Coronet Road").
 3. Keep all value-proposition bullet points from the template unless the template omits them.
 4. If a full address is in the CSV, include an offer to stop by their location and drop off business cards (like the example).
-5. Include availability: weekdays 8:00 AM–10:00 AM, weekends 8:00 AM–4:00 PM.
-6. Include the Calendly booking link: ${env.MANDATORY_CALENDLY_URL}
-7. End with "Would any of those times work for a call this week?" and Rik's full signature (name, BrokerLink, email, phone).
-8. Do not invent facts not supported by the template or CSV data.
-9. Return ONLY valid JSON: {"subject":"...","body":"..."}`
+5. Include the Calendly booking link: ${env.MANDATORY_CALENDLY_URL}
+6. End with "Would any of those times work for a call this week?" and Rik's full signature (name, BrokerLink, email, phone).
+7. Do not invent facts not supported by the template or CSV data.
+8. Return ONLY valid JSON: {"subject":"...","body":"..."}`
 }
 
 function finalizeEmail(subject: string, body: string): PersonalizedEmail {
