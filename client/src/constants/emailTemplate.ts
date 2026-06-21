@@ -20,7 +20,6 @@ My schedule tends to be fairly flexible, particularly during the earlier part of
 
 You can also book a time that works for you here: https://calendly.com/rik-insurance-broker/30min
 
-I'm also happy to stop by your location at {{full_address}} and drop off some business cards for your team.
 
 Would any of those times work for a call this week?
 
