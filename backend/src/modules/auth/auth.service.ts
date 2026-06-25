@@ -24,8 +24,10 @@ export function getGoogleAuthUrl(state?: string): string {
 
 /** Exchange authorization code for tokens and upsert the user record. */
 export async function handleGoogleCallback(code: string) {
+  console.log('[Auth] handleGoogleCallback — exchanging code with Google...')
   const client = createOAuth2Client()
   const { tokens } = await client.getToken(code)
+  console.log('[Auth] handleGoogleCallback — tokens received (access:', !!tokens.access_token, 'refresh:', !!tokens.refresh_token, ')')
 
   if (!tokens.access_token || !tokens.refresh_token) {
     throw new Error('Missing OAuth tokens from Google')
@@ -33,13 +35,16 @@ export async function handleGoogleCallback(code: string) {
 
   client.setCredentials(tokens)
 
+  console.log('[Auth] handleGoogleCallback — fetching Google profile...')
   const oauth2 = google.oauth2({ version: 'v2', auth: client })
   const { data: profile } = await oauth2.userinfo.get()
+  console.log('[Auth] handleGoogleCallback — profile:', profile.email)
 
   if (!profile.id || !profile.email) {
     throw new Error('Unable to retrieve Google profile')
   }
 
+  console.log('[Auth] handleGoogleCallback — upserting user in DB...')
   return store.upsertUser({
     googleId: profile.id,
     name: profile.name ?? null,

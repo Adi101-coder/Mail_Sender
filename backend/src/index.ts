@@ -4,7 +4,9 @@ import { connectDatabase } from './lib/mongodb.js'
 import { startCampaignScheduler } from './modules/scheduling/scheduler.service.js'
 
 async function start() {
+  console.log('[Server] connecting to database...')
   await connectDatabase()
+  console.log('[Server] database connected')
   startCampaignScheduler()
 
   const app = createApp()

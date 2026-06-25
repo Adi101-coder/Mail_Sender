@@ -30,11 +30,18 @@ export async function getCampaignById(userId: string, campaignId: string) {
 
 /** Dashboard stats for the authenticated user. */
 export async function getDashboardStats(userId: string) {
+  console.log('[Auth] getDashboardStats — start', userId)
+  const t0 = Date.now()
+
   const user = await store.findUserById(userId)
+  console.log('[Auth] getDashboardStats — findUserById', Date.now() - t0, 'ms')
+
+  const t1 = Date.now()
   const [campaignCount, sentCount] = await Promise.all([
     store.countCampaigns(userId),
     store.countSentRecipients(userId),
   ])
+  console.log('[Auth] getDashboardStats — counts', Date.now() - t1, 'ms', { campaignCount, sentCount })
 
   return {
     campaignCount,

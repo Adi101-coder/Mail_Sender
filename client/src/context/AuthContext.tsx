@@ -18,18 +18,28 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const AUTH_CHECK_TIMEOUT_MS = 10_000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
+    console.log('[Auth] refresh() started — checking session via /auth/me')
     try {
-      const data = await api.getMe()
+      const data = await Promise.race([
+        api.getMe(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error('Auth check timed out')), AUTH_CHECK_TIMEOUT_MS)
+        }),
+      ])
+      console.log('[Auth] refresh() success — user:', data.user?.email ?? '(not logged in)')
       setStats(data)
-    } catch {
+    } catch (error) {
+      console.error('[Auth] refresh() failed:', error)
       setStats(null)
     } finally {
+      console.log('[Auth] refresh() done — loading=false')
       setLoading(false)
     }
   }, [])

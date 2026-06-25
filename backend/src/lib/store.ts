@@ -1,4 +1,5 @@
 import type { Types } from 'mongoose'
+import mongoose from 'mongoose'
 import {
   CampaignModel,
   EmailLogModel,
@@ -292,19 +293,33 @@ export const store = {
   },
 
   async countCampaigns(userId: string): Promise<number> {
-    return CampaignModel.countDocuments({ userId })
+    return CampaignModel.countDocuments({ userId: new mongoose.Types.ObjectId(userId) }).maxTimeMS(
+      10_000,
+    )
   },
 
   async countSentRecipients(userId: string): Promise<number> {
-    const campaigns = await CampaignModel.find({ userId }).select('_id')
-    const campaignIds = campaigns.map((c) => c._id)
+    const objectId = new mongoose.Types.ObjectId(userId)
+    const [result] = await RecipientModel.aggregate<{ total: number }>([
+      {
+        $lookup: {
+          from: CampaignModel.collection.name,
+          localField: 'campaignId',
+          foreignField: '_id',
+          as: 'campaign',
+        },
+      },
+      { $unwind: '$campaign' },
+      {
+        $match: {
+          'campaign.userId': objectId,
+          status: 'Sent',
+        },
+      },
+      { $count: 'total' },
+    ]).option({ maxTimeMS: 10_000 })
 
-    if (campaignIds.length === 0) return 0
-
-    return RecipientModel.countDocuments({
-      campaignId: { $in: campaignIds },
-      status: 'Sent',
-    })
+    return result?.total ?? 0
   },
 
   async replaceRecipients(

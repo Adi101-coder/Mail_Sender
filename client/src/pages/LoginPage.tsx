@@ -19,10 +19,13 @@ export function LoginPage() {
   }, [searchParams])
 
   const handleSignIn = async () => {
+    console.log('[Auth] Sign in clicked — fetching Google OAuth URL')
     try {
       const { url } = await api.getGoogleAuthUrl()
+      console.log('[Auth] Got OAuth URL, redirecting to Google...')
       window.location.href = url
-    } catch {
+    } catch (error) {
+      console.error('[Auth] Failed to get Google OAuth URL:', error)
       toast.error('Unable to start Google sign-in')
     }
   }
